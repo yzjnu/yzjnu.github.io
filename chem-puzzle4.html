@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>化合价拼化学式随机版（总分200）</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "Microsoft YaHei", sans-serif;
+  background: linear-gradient(180deg, #fff3e0, #ffe0b2);
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center; padding: 20px;
+}
+h1 { font-size: 28px; color: #e65100; margin: 10px 0 5px; }
+.subtitle { font-size: 14px; color: #666; margin-bottom: 10px; }
+.hint {
+  font-size: 18px; color: #333; margin-bottom: 10px; text-align: center;
+  background: rgba(255,255,255,0.9); padding: 8px 16px; border-radius: 10px; font-weight: bold;
+}
+.slots { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; justify-content: center; }
+.slot {
+  width: 75px; height: 75px; border: 3px dashed #ff9800; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; font-weight: bold; background: rgba(255,255,255,0.95);
+  cursor: pointer; transition: all 0.2s; position: relative;
+}
+.slot.filled { border-style: solid; border-color: #2196F3; background: #e3f2fd; }
+.slot .sub { font-size: 18px; vertical-align: sub; }
+.slot .sup { font-size: 18px; vertical-align: super; }
+.slot-num { position: absolute; top: -10px; left: 4px; font-size: 12px; color: #999; font-weight: normal; }
+.pool { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 15px 0; max-width: 720px; }
+.piece {
+  min-width: 70px; height: 70px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: bold; color: #fff; cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2); transition: transform 0.15s; user-select: none; padding: 0 8px;
+}
+.piece:hover { transform: scale(1.1); }
+.piece:active { transform: scale(0.95); }
+.piece.selected { outline: 4px solid #FFD600; outline-offset: 2px; }
+.p-el { background: #2196F3; }
+.p-num { background: #FF9800; }
+.p-ch { background: #E91E63; }
+.p-group { background: #9C27B0; }
+.btns { display: flex; gap: 12px; margin: 15px 0; flex-wrap: wrap; justify-content: center; }
+button { font-size: 16px; padding: 10px 22px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; }
+.btn-check { background: #4CAF50; color: #fff; }
+.btn-clear { background: #FF9800; color: #fff; }
+.btn-next { background: #2196F3; color: #fff; }
+.btn-level { background: #7B1FA2; color: #fff; }
+.msg { margin-top: 15px; padding: 12px 20px; border-radius: 10px; font-size: 18px; text-align: center; max-width: 600px; min-height: 50px; }
+.msg.right { background: #c8e6c9; color: #2e7d32; }
+.msg.wrong { background: #ffcdd2; color: #c62828; }
+.msg.info { background: #e3f2fd; color: #1565c0; }
+.score-bar {
+  position: fixed; top: 10px; right: 20px; font-size: 16px; color: #333;
+  background: rgba(255,255,255,0.95); padding: 6px 14px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.level-overlay {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5); z-index: 999;
+  align-items: center; justify-content: center;
+}
+.level-overlay.show { display: flex; }
+.level-box {
+  background: #fff; border-radius: 16px; padding: 24px; max-width: 520px; width: 92%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+}
+.level-box h3 { text-align: center; color: #e65100; margin-bottom: 14px; font-size: 20px; }
+.level-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.level-grid button {
+  padding: 14px 0; border-radius: 10px; border: 2px solid #ff9800;
+  background: #fff; color: #e65100; font-size: 15px; font-weight: bold;
+  cursor: pointer; transition: all 0.15s;
+}
+.level-grid button:hover { background: #ff9800; color: #fff; }
+.level-grid button.current { background: #e65100; color: #fff; border-color: #e65100; }
+.level-grid button.cleared { background: #4CAF50; color: #fff; border-color: #4CAF50; }
+.level-close {
+  display: block; margin: 14px auto 0; padding: 8px 28px;
+  background: #999; color: #fff; border: none; border-radius: 8px; font-size: 15px; cursor: pointer;
+}
+@media (min-width: 1000px) {
+  h1 { font-size: 40px; }
+  .subtitle { font-size: 18px; }
+  .hint { font-size: 24px; }
+  .slot { width: 95px; height: 95px; font-size: 40px; }
+  .piece { min-width: 85px; height: 85px; font-size: 36px; }
+  button { font-size: 20px; padding: 14px 30px; }
+  .msg { font-size: 22px; }
+}
+</style>
+</head>
+<body>
+
+<div class="score-bar">⭐ 得分：<span id="score">0</span> / 200</div>
+
+<h1>⚖️ 化合价拼化学式随机版（共20关）</h1>
+<p class="subtitle">根据化合价，用十字交叉法拼出化学式</p>
+
+<div class="hint" id="hint"></div>
+
+<div class="slots" id="slots"></div>
+<div class="pool" id="pool"></div>
+
+<div class="btns">
+  <button class="btn-check" onclick="check()">✅ 检查答案</button>
+  <button class="btn-clear" onclick="clearAll()">🔄 清空</button>
+  <button class="btn-next" onclick="nextLevel()">⏭ 下一关</button>
+  <button class="btn-level" onclick="openLevelPanel()">📋 选择关卡</button>
+</div>
+
+<div class="msg info" id="msg">点击下面的符号，再点击上面的空格来拼化学式</div>
+
+<!-- 关卡选择弹窗 -->
+<div class="level-overlay" id="levelOverlay">
+  <div class="level-box">
+    <h3>📋 选择关卡</h3>
+    <div class="level-grid" id="levelGrid"></div>
+    <button class="level-close" onclick="closeLevelPanel()">关闭</button>
+  </div>
+</div>
+
+<script>
+function shuffleLevels(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const LEVELS = [
+  { hint:'第1关：氯化钠', answer:['N','a','C','l'], cls:['','','',''],
+    pool:[['N','a'],['C','l'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第2关：氧化镁', answer:['M','g','O'], cls:['','',''],
+    pool:[['M','g'],['O'],['1'],['2'],['3'],['4']]},
+
+  { hint:'第3关：氧化铝', answer:['A','l','2','O','3'], cls:['','sub','','sub'],
+    pool:[['A','l'],['O'],['1'],['2'],['3'],['4']]},
+
+  { hint:'第4关：氯化钙', answer:['C','a','C','l','2'], cls:['','','sub'],
+    pool:[['C','a'],['C','l'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第5关：氧化铁', answer:['F','e','2','O','3'], cls:['','sub','','sub'],
+    pool:[['F','e'],['O'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第6关：氧化铜', answer:['C','u','O'], cls:['',''],
+    pool:[['C','u'],['O'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第7关：氯化铝', answer:['A','l','C','l','3'], cls:['','','sub'],
+    pool:[['A','l'],['C','l'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第8关：氯化亚铁', answer:['F','e','C','l','2'], cls:['','','sub'],
+    pool:[['F','e'],['C','l'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第9关：氯化铁', answer:['F','e','C','l','3'], cls:['','','sub'],
+    pool:[['F','e'],['C','l'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第10关：氢氧化钾', answer:['K','O','H'], cls:['','',''],
+    pool:[['K'],['O'],['H'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第11关：氢氧化钠', answer:['N','a','O','H'], cls:['','',''],
+    pool:[['N','a'],['O'],['H'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第12关：氢氧化钙', answer:['C','a','(','O','H',')','2'], cls:['','','','','','sub'],
+    pool:[['C','a'],['O'],['H'],['('],[')'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第13关：氢氧化铜', answer:['C','u','(','O','H',')','2'], cls:['','','','','','sub'],
+    pool:[['C','u'],['O'],['H'],['('],[')'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第14关：氢氧化铁', answer:['F','e','(','O','H',')','3'], cls:['','','','','','sub'],
+    pool:[['F','e'],['O'],['H'],['('],[')'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第15关：硝酸钾', answer:['K','N','O','3'], cls:['','','','sub'],
+    pool:[['K'],['N'],['O'],['('],[')'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第16关：硝酸钡', answer:['B','a','(','N','O','3',')','2'], cls:['','','','','sub','','sub'],
+    pool:[['B','a'],['N'],['O'],['('],[')'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第17关：碳酸钠', answer:['N','a','2','C','O','3'], cls:['','sub','','','sub'],
+    pool:[['N','a'],['C'],['O'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第18关：碳酸钙', answer:['C','a','C','O','3'], cls:['','','','sub'],
+    pool:[['C','a'],['C'],['O'],['1'],['2'],['3'],['4']]},
+
+  { hint:'第19关：硫酸铜', answer:['C','u','S','O','4'], cls:['','','','sub'],
+    pool:[['C','u'],['S'],['O'],['1'],['2'],['3'],['4']] },
+
+  { hint:'第20关：硫酸铝', answer:['A','l','2','(','S','O','4',')','3'], cls:['','sub','','','','sub','','sub'],
+    pool:[['A','l'],['S'],['O'],['('],[')'],['1'],['2'],['3'],['4']] },
+];
+
+// 随机打乱顺序
+let gameLevels = shuffleLevels(LEVELS);
+
+let currentLevel = 0;
+let slots = [];
+let selectedPiece = null;
+let score = 0;
+let levelPassed = false;
+let wrongCount = 0;
+let scoreLocked = false;
+let clearedLevels = {};
+
+function init() { loadLevel(currentLevel); }
+
+function loadLevel(idx) {
+  const lv = gameLevels[idx];
+  slots = lv.answer.map(() => ({ char:'', cls:'' }));
+  selectedPiece = null;
+  levelPassed = false; wrongCount = 0; scoreLocked = false;
+
+  document.getElementById('hint').textContent = lv.hint.replace(/第\d+关/, '第' + (idx + 1) + '关');
+
+  setMsg('点击下面的符号，再点击上面的空格来拼化学式', 'info');
+  renderSlots(); renderPool();
+}
+
+function renderSlots() {
+  const c = document.getElementById('slots');
+  c.innerHTML = '';
+  slots.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'slot' + (s.char ? ' filled' : '');
+    d.onclick = () => fillSlot(i);
+    const num = document.createElement('span');
+    num.className = 'slot-num'; num.textContent = i + 1;
+    d.appendChild(num);
+    if (s.char) {
+      const sp = document.createElement('span');
+      sp.textContent = s.char; sp.className = s.cls;
+      d.appendChild(sp);
+    } else {
+      const ph = document.createElement('span');
+      ph.textContent = '?'; ph.style.color = '#bbb'; ph.style.fontSize = '28px';
+      d.appendChild(ph);
+    }
+    c.appendChild(d);
+  });
+}
+
+function renderPool() {
+  const c = document.getElementById('pool');
+  c.innerHTML = '';
+  const items = gameLevels[currentLevel].pool || [];
+  items.forEach((item, i) => {
+    const char = item.join('');
+    const d = document.createElement('div');
+    let type = 'el';
+    if (/^\d+$/.test(char)) type = 'num';
+    else if (/^[+\-]$/.test(char)) type = 'ch';
+    else if (char === '(' || char === ')') type = 'ch';
+    else if (char.length >= 2 && /[A-Z]/.test(char)) type = 'group';
+    d.className = 'piece p-' + type + (selectedPiece === i ? ' selected' : '');
+    d.textContent = char;
+    d.onclick = () => selectPiece(i);
+    c.appendChild(d);
+  });
+}
+
+function selectPiece(id) {
+  selectedPiece = (selectedPiece === id) ? null : id;
+  renderPool();
+  const items = gameLevels[currentLevel].pool || [];
+  if (items[id] && selectedPiece) setMsg('已选 "' + items[id].join('') + '"，点上面的空格', 'info');
+}
+
+function fillSlot(idx) {
+  if (selectedPiece === null) { setMsg('⚠️ 先点下面的符号！', 'wrong'); return; }
+  const items = gameLevels[currentLevel].pool || [];
+  const p = items[selectedPiece];
+  if (!p) return;
+  slots[idx] = { char: p.join(''), cls: gameLevels[currentLevel].cls[idx] || '' };
+  selectedPiece = null;
+  renderSlots(); renderPool();
+}
+
+function clearAll() {
+  slots = slots.map(() => ({ char:'', cls:'' }));
+  selectedPiece = null;
+  levelPassed = false; wrongCount = 0; scoreLocked = false;
+  renderSlots(); renderPool();
+  setMsg('已清空，重新拼吧！', 'info');
+}
+
+function check() {
+  const user = slots.map(s => s.char).join('');
+  const ans = gameLevels[currentLevel].answer.join('');
+  if (user === ans) {
+    if (!scoreLocked) {
+      score += 10;
+      document.getElementById('score').textContent = score;
+      setMsg('🎉 正确！+10分　答案：' + ans, 'right');
+    } else {
+      setMsg('✅ 拼对了，但之前答错过，本关不得分。答案：' + ans, 'right');
+    }
+    levelPassed = true;
+    clearedLevels[currentLevel] = true;
+  } else if (user.length < ans.length) {
+    setMsg('还有 ' + (ans.length - user.length) + ' 个空没填呢', 'wrong');
+  } else {
+    scoreLocked = true; wrongCount++;
+    if (wrongCount >= 3) {
+      setMsg('😅 已错3次，正确答案是 "' + ans + '"，自动进入下一关', 'wrong');
+      levelPassed = true;
+      clearedLevels[currentLevel] = true;
+      setTimeout(nextLevel, 2500);
+    } else {
+      setMsg('❌ 答错！本关分数已锁定，改对也不给分。（还剩' + (3 - wrongCount) + '次机会）', 'wrong');
+    }
+  }
+}
+
+function nextLevel() {
+  if (!levelPassed) { setMsg('🔒 还没答对呢，先拼对才能进下一关！', 'wrong'); return; }
+  currentLevel++;
+  if (currentLevel >= gameLevels.length) {
+    setMsg('🏆 全部通关！得分：' + score + ' / 200　刷新页面重来', 'right');
+    currentLevel = 0; score = 0;
+    document.getElementById('score').textContent = score;
+    // 通关后重新随机排序
+    gameLevels = shuffleLevels(LEVELS);
+  }
+  loadLevel(currentLevel);
+}
+
+function setMsg(text, type) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+
+/* ===== 关卡选择功能 ===== */
+function openLevelPanel() {
+  const grid = document.getElementById('levelGrid');
+  grid.innerHTML = '';
+  gameLevels.forEach((lv, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = '第' + (i + 1) + '关';
+    if (i === currentLevel) btn.classList.add('current');
+    else if (clearedLevels[i]) btn.classList.add('cleared');
+    btn.onclick = () => {
+      currentLevel = i;
+      loadLevel(i);
+      closeLevelPanel();
+    };
+    grid.appendChild(btn);
+  });
+  document.getElementById('levelOverlay').classList.add('show');
+}
+
+function closeLevelPanel() {
+  document.getElementById('levelOverlay').classList.remove('show');
+}
+
+init();
+</script>
+</body>
+</html>
